@@ -1,81 +1,615 @@
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>Chatbot</title>
-		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css')}}"/>
-	</head>
-	
-	
-	<body>
-		<div class="container-fluid h-100">
-			<div class="row justify-content-center h-100">		
-				<div class="col-md-8 col-xl-6 chat">
-					<div class="card">
-						<div class="card-header msg_head">
-							<div class="d-flex bd-highlight">
-								<div class="img_cont">
-									<img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img">
-									<!-- <img src="https://www.prdistribution.com/spirit/uploads/pressreleases/2019/newsreleases/d83341deb75c4c4f6b113f27b1e42cd8-chatbot-florence-already-helps-thousands-of-patients-to-remember-their-medication.png" class="rounded-circle user_img"> -->
-									<span class="online_icon"></span>
-								</div>
-								<div class="user_info">
-									<span>Medical Chatbot</span>
-									<p>Ask me anything!</p>
-								</div>
-							</div>
-						</div>
-						<div id="messageFormeight" class="card-body msg_card_body">
-							
-							
-						</div>
-						<div class="card-footer">
-							<form id="messageArea" class="input-group">
-                                <input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" class="form-control type_msg" required/>
-								<div class="input-group-append">
-									<button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
-								</div>
-							</form>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		
-		<script>
-			$(document).ready(function() {
-				$("#messageArea").on("submit", function(event) {
-					const date = new Date();
-					const hour = date.getHours();
-					const minute = date.getMinutes();
-					const str_time = hour+":"+minute;
-					var rawText = $("#text").val();
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediAssist AI — Intelligent Medical Assistant</title>
+    <meta name="description" content="MediAssist AI is an intelligent RAG-powered medical chatbot that answers your health questions accurately and instantly.">
 
-					var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">'+ str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
-					
-					$("#text").val("");
-					$("#messageFormeight").append(userHtml);
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-					$.ajax({
-						data: {
-							msg: rawText,	
-						},
-						type: "POST",
-						url: "/get",
-					}).done(function(data) {
-						var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data + '<span class="msg_time">' + str_time + '</span></div></div>';
-						$("#messageFormeight").append($.parseHTML(botHtml));
-					});
-					event.preventDefault();
-				});
-			});
-		</script>
-        
-    </body>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+    /* ── History Panel ── */
+    .history-panel {
+        display: none;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+        animation: fadeSlideUp 0.3s ease;
+    }
+    .history-panel.active { display: flex; }
+
+    .history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 28px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        flex-shrink: 0;
+    }
+    .history-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e8f0fe;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .history-header h2 i { color: #00c6a7; }
+
+    .history-count {
+        font-size: 12px;
+        background: rgba(0,198,167,0.15);
+        border: 1px solid rgba(0,198,167,0.3);
+        color: #00c6a7;
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-weight: 600;
+    }
+
+    .clear-history-btn {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: rgba(239,68,68,0.12);
+        border: 1px solid rgba(239,68,68,0.25);
+        color: rgba(239,68,68,0.85);
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    .clear-history-btn:hover {
+        background: rgba(239,68,68,0.22);
+        border-color: rgba(239,68,68,0.5);
+        color: #ef4444;
+    }
+
+    .history-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+    .history-list::-webkit-scrollbar { width: 5px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    .history-item {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 14px;
+        padding: 16px 18px;
+        transition: all 0.25s ease;
+        cursor: default;
+        animation: fadeSlideUp 0.35s ease;
+    }
+    .history-item:hover {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(0,198,167,0.25);
+        transform: translateY(-1px);
+    }
+
+    .history-item-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .history-item-index {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #00c6a7;
+        background: rgba(0,198,167,0.1);
+        padding: 2px 8px;
+        border-radius: 20px;
+    }
+    .history-item-time {
+        font-size: 11px;
+        color: #4a6080;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .history-item-time i { font-size: 10px; }
+
+    .history-q {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    .history-q-icon {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: #fff; flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .history-q-text {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #e8f0fe;
+        line-height: 1.5;
+    }
+
+    .history-a {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .history-a-icon {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #065f46, #00c6a7);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: #fff; flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .history-a-text {
+        font-size: 13px;
+        color: #8ba3c7;
+        line-height: 1.65;
+    }
+
+    .history-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        gap: 14px;
+        color: #4a6080;
+        text-align: center;
+        padding: 60px 20px;
+    }
+    .history-empty i {
+        font-size: 48px;
+        color: rgba(0,198,167,0.25);
+    }
+    .history-empty p { font-size: 14px; line-height: 1.6; }
+    .history-empty strong { color: #8ba3c7; }
+
+    /* ── Active nav tab ── */
+    .nav-item.active {
+        background: rgba(0,198,167,0.15);
+        color: #00c6a7;
+        border: 1px solid rgba(0,198,167,0.3);
+    }
+
+    /* ── Chat view / history view toggle ── */
+    .chat-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .chat-view.hidden { display: none; }
+
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    </style>
+</head>
+<body>
+
+<!-- Animated Background Orbs -->
+<div class="bg-orb orb-1"></div>
+<div class="bg-orb orb-2"></div>
+<div class="bg-orb orb-3"></div>
+
+<div class="app-wrapper">
+
+    <!-- ─── SIDEBAR ─── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <i class="fa-solid fa-heart-pulse"></i>
+            </div>
+            <div class="logo-text">
+                <span class="logo-name">MediAssist</span>
+                <span class="logo-tag">AI</span>
+            </div>
+        </div>
+
+        <div class="sidebar-section-label">Navigation</div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" id="nav-chat">
+                <i class="fa-solid fa-comments"></i>
+                <span>Chat</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>History</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-topics">
+                <i class="fa-solid fa-book-medical"></i>
+                <span>Topics</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-section-label" style="margin-top:auto;">Quick Topics</div>
+        <div class="quick-topics">
+            <button class="topic-chip" onclick="insertTopic('Symptoms of diabetes')">Diabetes</button>
+            <button class="topic-chip" onclick="insertTopic('Common cold remedies')">Cold &amp; Flu</button>
+            <button class="topic-chip" onclick="insertTopic('Heart disease prevention')">Heart Health</button>
+            <button class="topic-chip" onclick="insertTopic('Mental health tips')">Mental Health</button>
+            <button class="topic-chip" onclick="insertTopic('Medication side effects')">Medications</button>
+            <button class="topic-chip" onclick="insertTopic('Nutrition and diet advice')">Nutrition</button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="disclaimer-badge">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>For informational use only. Always consult a licensed physician.</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ─── MAIN AREA ─── -->
+    <main class="chat-main">
+
+        <!-- TOP BAR -->
+        <header class="chat-topbar">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="topbar-identity">
+                <div class="bot-avatar-small">
+                    <i class="fa-solid fa-robot"></i>
+                    <span class="status-dot"></span>
+                </div>
+                <div class="topbar-info">
+                    <h1 class="topbar-name" id="topbarTitle">Medical AI Assistant</h1>
+                    <p class="topbar-status"><span class="pulse-dot"></span> Online &mdash; Powered by RAG + LLM</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button class="icon-btn" id="clearChatBtn" title="Clear chat">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+                <button class="icon-btn" id="themeToggle" title="Toggle theme">
+                    <i class="fa-solid fa-circle-half-stroke"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ═══ CHAT VIEW ═══ -->
+        <div class="chat-view" id="chatView">
+
+            <!-- CHAT MESSAGES -->
+            <div class="chat-body" id="chatBody">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">
+                        <i class="fa-solid fa-stethoscope"></i>
+                    </div>
+                    <h2>How can I help you today?</h2>
+                    <p>Ask me anything about symptoms, treatments, medications, or general health topics. I use verified medical sources to answer your questions.</p>
+                    <div class="welcome-chips">
+                        <button class="welcome-chip" onclick="insertTopic('What are the symptoms of high blood pressure?')">
+                            <i class="fa-solid fa-heart"></i> Blood Pressure
+                        </button>
+                        <button class="welcome-chip" onclick="insertTopic('How to manage type 2 diabetes?')">
+                            <i class="fa-solid fa-syringe"></i> Diabetes
+                        </button>
+                        <button class="welcome-chip" onclick="insertTopic('What causes chronic headaches?')">
+                            <i class="fa-solid fa-head-side-virus"></i> Headaches
+                        </button>
+                        <button class="welcome-chip" onclick="insertTopic('Foods that boost immunity')">
+                            <i class="fa-solid fa-shield-virus"></i> Immunity
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TYPING INDICATOR -->
+            <div class="typing-bar" id="typingBar">
+                <div class="typing-avatar"><i class="fa-solid fa-robot"></i></div>
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <span class="typing-label">MediAssist is thinking…</span>
+            </div>
+
+            <!-- INPUT AREA -->
+            <footer class="chat-footer">
+                <form id="messageArea" class="input-row" autocomplete="off">
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-magnifying-glass-plus input-icon"></i>
+                        <input
+                            type="text"
+                            id="text"
+                            placeholder="Ask a medical question…"
+                            autocomplete="off"
+                            required
+                        >
+                        <button type="submit" class="send-btn" id="sendBtn" aria-label="Send">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+                <p class="footer-disclaimer">MediAssist AI does not replace professional medical advice.</p>
+            </footer>
+        </div>
+
+        <!-- ═══ HISTORY VIEW ═══ -->
+        <div class="history-panel" id="historyView">
+            <div class="history-header">
+                <h2>
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Chat History
+                    <span class="history-count" id="historyCount">0</span>
+                </h2>
+                <button class="clear-history-btn" id="clearHistoryBtn">
+                    <i class="fa-solid fa-trash-can"></i> Clear All
+                </button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- filled by JS -->
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+$(document).ready(function () {
+
+    /* ── Helpers ── */
+    function getTime() {
+        const d = new Date();
+        return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    }
+
+    function scrollDown() {
+        const cb = document.getElementById('chatBody');
+        cb.scrollTo({ top: cb.scrollHeight, behavior: 'smooth' });
+    }
+
+    function hideWelcome() {
+        const ws = $('#welcomeScreen');
+        if (ws.length) ws.fadeOut(300, function(){ ws.remove(); });
+    }
+
+    function showTyping() {
+        $('#typingBar').addClass('visible');
+        scrollDown();
+    }
+
+    function hideTyping() {
+        $('#typingBar').removeClass('visible');
+    }
+
+    function appendUserMsg(text, time) {
+        const html = `
+        <div class="msg-row user-row">
+            <div class="msg-bubble user-bubble">
+                <p class="msg-text">${escapeHtml(text)}</p>
+                <span class="msg-time">${time}</span>
+            </div>
+            <div class="msg-avatar user-avatar"><i class="fa-solid fa-user"></i></div>
+        </div>`;
+        $('#chatBody').append(html);
+        scrollDown();
+    }
+
+    function appendBotMsg(text, time) {
+        const html = `
+        <div class="msg-row bot-row">
+            <div class="msg-avatar bot-avatar-msg"><i class="fa-solid fa-robot"></i></div>
+            <div class="msg-bubble bot-bubble">
+                <p class="msg-text">${text}</p>
+                <span class="msg-time">${time}</span>
+            </div>
+        </div>`;
+        $('#chatBody').append(html);
+        scrollDown();
+    }
+
+    function escapeHtml(text) {
+        return $('<div>').text(text).html();
+    }
+
+    /* ── Form Submit ── */
+    $('#messageArea').on('submit', function (e) {
+        e.preventDefault();
+        const rawText = $('#text').val().trim();
+        if (!rawText) return;
+
+        hideWelcome();
+        const time = getTime();
+
+        appendUserMsg(rawText, time);
+        $('#text').val('');
+        $('#sendBtn').prop('disabled', true);
+        showTyping();
+
+        $.ajax({
+            data: { msg: rawText },
+            type: 'POST',
+            url: '/get',
+        }).done(function (data) {
+            hideTyping();
+            appendBotMsg(data, getTime());
+        }).fail(function () {
+            hideTyping();
+            appendBotMsg('Sorry, I encountered an error. Please try again.', getTime());
+        }).always(function () {
+            $('#sendBtn').prop('disabled', false);
+            $('#text').focus();
+        });
+    });
+
+    /* ── Clear Chat ── */
+    $('#clearChatBtn').on('click', function () {
+        $('#chatBody').html(`
+        <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-icon"><i class="fa-solid fa-stethoscope"></i></div>
+            <h2>How can I help you today?</h2>
+            <p>Ask me anything about symptoms, treatments, medications, or general health topics.</p>
+            <div class="welcome-chips">
+                <button class="welcome-chip" onclick="insertTopic('What are the symptoms of high blood pressure?')"><i class="fa-solid fa-heart"></i> Blood Pressure</button>
+                <button class="welcome-chip" onclick="insertTopic('How to manage type 2 diabetes?')"><i class="fa-solid fa-syringe"></i> Diabetes</button>
+                <button class="welcome-chip" onclick="insertTopic('What causes chronic headaches?')"><i class="fa-solid fa-head-side-virus"></i> Headaches</button>
+                <button class="welcome-chip" onclick="insertTopic('Foods that boost immunity')"><i class="fa-solid fa-shield-virus"></i> Immunity</button>
+            </div>
+        </div>`);
+    });
+
+    /* ── Sidebar Toggle ── */
+    $('#sidebarToggle').on('click', function () {
+        $('#sidebar').toggleClass('collapsed');
+        $('.app-wrapper').toggleClass('sidebar-hidden');
+    });
+
+    /* ── Enter key sends ── */
+    $('#text').on('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            $('#messageArea').submit();
+        }
+    });
+
+    /* ══════════════════════════════════════
+       HISTORY PANEL
+    ══════════════════════════════════════ */
+
+    function showChatView() {
+        $('#chatView').show();
+        $('#historyView').removeClass('active');
+        $('#nav-chat').addClass('active');
+        $('#nav-history').removeClass('active');
+        $('#topbarTitle').text('Medical AI Assistant');
+        $('#clearChatBtn').show();
+    }
+
+    function showHistoryView() {
+        $('#chatView').hide();
+        $('#historyView').addClass('active');
+        $('#nav-history').addClass('active');
+        $('#nav-chat').removeClass('active');
+        $('#topbarTitle').text('Chat History');
+        $('#clearChatBtn').hide();
+        loadHistory();
+    }
+
+    function loadHistory() {
+        $.ajax({
+            url: '/history',
+            type: 'GET',
+        }).done(function (data) {
+            renderHistory(data);
+        }).fail(function () {
+            $('#historyList').html(`
+                <div class="history-empty">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>Failed to load history. Please try again.</p>
+                </div>`);
+        });
+    }
+
+    function renderHistory(data) {
+        $('#historyCount').text(data.length);
+
+        if (!data || data.length === 0) {
+            $('#historyList').html(`
+                <div class="history-empty">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <p><strong>No history yet.</strong><br>Start chatting and your conversations will appear here.</p>
+                </div>`);
+            return;
+        }
+
+        // Show newest first
+        const reversed = [...data].reverse();
+        let html = '';
+        reversed.forEach(function (item, i) {
+            const num = data.length - i;
+            html += `
+            <div class="history-item">
+                <div class="history-item-meta">
+                    <span class="history-item-index">Q${num}</span>
+                    <span class="history-item-time"><i class="fa-regular fa-clock"></i>${escapeHtml(item.time || '')}</span>
+                </div>
+                <div class="history-q">
+                    <div class="history-q-icon"><i class="fa-solid fa-user"></i></div>
+                    <div class="history-q-text">${escapeHtml(item.question)}</div>
+                </div>
+                <div class="history-a">
+                    <div class="history-a-icon"><i class="fa-solid fa-robot"></i></div>
+                    <div class="history-a-text">${escapeHtml(item.answer)}</div>
+                </div>
+            </div>`;
+        });
+        $('#historyList').html(html);
+    }
+
+    /* ── Nav: Chat ── */
+    $('#nav-chat').on('click', function (e) {
+        e.preventDefault();
+        showChatView();
+    });
+
+    /* ── Nav: History ── */
+    $('#nav-history').on('click', function (e) {
+        e.preventDefault();
+        showHistoryView();
+    });
+
+    /* ── Nav: Topics (scroll to quick topics) ── */
+    $('#nav-topics').on('click', function (e) {
+        e.preventDefault();
+        showChatView();
+        // Ensure sidebar is visible
+        if ($('#sidebar').hasClass('collapsed')) {
+            $('#sidebar').removeClass('collapsed');
+        }
+        $('.quick-topics')[0].scrollIntoView({ behavior: 'smooth' });
+    });
+
+    /* ── Clear History ── */
+    $('#clearHistoryBtn').on('click', function () {
+        if (!confirm('Are you sure you want to clear all chat history?')) return;
+        $.ajax({
+            url: '/history/clear',
+            type: 'POST',
+        }).done(function () {
+            renderHistory([]);
+        });
+    });
+
+});
+
+/* ── Topic chips ── */
+function insertTopic(text) {
+    // Switch to chat view first if on history
+    $('#chatView').show();
+    $('#historyView').removeClass('active');
+    $('#nav-chat').addClass('active');
+    $('#nav-history').removeClass('active');
+    $('#topbarTitle').text('Medical AI Assistant');
+
+    $('#text').val(text).focus();
+    $('#messageArea').submit();
+}
+</script>
+
+</body>
 </html>

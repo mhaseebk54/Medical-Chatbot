@@ -1,3 +1,4 @@
+README.md
 setup.py
 medical_rag_chatbot.egg-info/PKG-INFO
 medical_rag_chatbot.egg-info/SOURCES.txt

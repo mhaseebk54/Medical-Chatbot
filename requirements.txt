@@ -1,9 +1,14 @@
 langchain==0.3.26
-flask==3.1.1 
-sentence-transformers==4.1.0
-pypdf==5.6.1 
-python-dotenv==1.1.0
-langchain-pinecone==0.2.8 
-langchain-ollama
+langchain-core==0.3.75
 langchain-community==0.3.26
+langchain-text-splitters==0.3.11
+
+flask==3.1.1
+sentence-transformers==2.7.0
+pypdf==5.6.1
+python-dotenv==1.1.0
+
+langchain-pinecone==0.2.8
+langchain-ollama==0.3.7
+
 -e .
