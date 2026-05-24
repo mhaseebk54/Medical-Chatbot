@@ -27,7 +27,7 @@ docsearch = PineconeVectorStore.from_existing_index(
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 5})
 
-chatModel = ChatOllama(model="qwen2.5:7b", base_url="http://localhost:11434")
+chatModel = ChatOllama(model="phi3:latest", base_url="http://localhost:11434")
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
